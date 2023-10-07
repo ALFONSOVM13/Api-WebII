@@ -59,15 +59,33 @@ export const updateProducto = async(req, res) => {
     }
 }
 
-export const deleteProducto = async(req, res) => {
-    const codigo = req.params.codigo
+export const deleteProducto = async (req, res) => {
+    const codigo = req.params.codigo;
+    
     try {
-        const [result] = await pool.query('DELETE FROM productos WHERE codigo=?',[codigo])
-        if(result.affectedRows <= 0) return res.status(404).json({
-            message: 'Producto no encontrado'
-        })
-        res.send(204)
+        // Verificar si el producto está asociado a alguna venta
+        const [checkResult] = await pool.query('SELECT * FROM ventas WHERE codigo_producto=?', [codigo]);
+        
+        if (checkResult.length > 0) {
+            // Si hay ventas asociadas, enviar un mensaje de error
+            return res.status(400).json({
+                message: 'El producto está asociado a una venta y no se puede eliminar.'
+            });
+        }
+        
+        // Si no hay ventas asociadas, proceder con la eliminación del producto
+        const [result] = await pool.query('DELETE FROM productos WHERE codigo=?', [codigo]);
+        
+        if (result.affectedRows <= 0) {
+            return res.status(404).json({
+                message: 'Producto no encontrado'
+            });
+        }
+        
+        res.sendStatus(204); // Enviar un código 204 para indicar que la eliminación fue exitosa
     } catch (error) {
-        return res.status(500).json({message: error.message})
+        return res.status(500).json({
+            message: error.message
+        });
     }
 }
